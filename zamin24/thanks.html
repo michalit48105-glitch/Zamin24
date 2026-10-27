@@ -2,49 +2,69 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B1512">
 <title>תודה! — זמין24</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#10231C;--bg:#F4F6F3;--teal:#128C7E;--green:#1FAD5E;--muted:#5A6B63}
+:root{--night:#0B1512;--line:rgba(233,243,236,.1);--text:#EAF3EE;--muted:#9DB0A7;--signal:#2BD67B;--ease-out:cubic-bezier(.2,.7,.2,1);--ease-spring:cubic-bezier(.34,1.4,.64,1)}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Assistant',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
-header{padding:18px 20px}
-.logo{font-family:'Rubik';font-weight:800;font-size:1.5rem}
-.logo span{color:var(--teal)}
-main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
-.card{background:#fff;border-radius:24px;padding:48px 32px;max-width:480px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(16,35,28,.08)}
-.check{width:84px;height:84px;border-radius:50%;background:#E4F5EA;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:2.4rem;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
-@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
-h1{font-family:'Rubik';font-weight:800;font-size:1.7rem;margin-bottom:12px}
-p.sub{color:var(--muted);font-size:1.05rem;margin-bottom:8px}
-p.time{font-weight:700;color:var(--teal);margin-bottom:28px}
-.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--green);color:#fff;padding:16px;border-radius:14px;text-decoration:none;font-family:'Rubik';font-weight:600;font-size:1.05rem;box-shadow:0 6px 20px rgba(31,173,94,.35);transition:transform .15s}
-.wa-btn:hover{transform:translateY(-2px)}
-.or{color:var(--muted);font-size:.9rem;margin:16px 0 10px}
-.back{color:var(--teal);text-decoration:none;font-weight:600}
-footer{padding:24px;text-align:center;color:var(--muted);font-size:.85rem}
+body{font-family:'Heebo',sans-serif;background:var(--night);color:var(--text);min-height:100dvh;display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+body::before{content:"";position:fixed;top:50%;left:50%;width:640px;height:640px;transform:translate(-50%,-55%);background:radial-gradient(closest-side,rgba(43,214,123,.16),transparent 70%);pointer-events:none;z-index:-1}
+header{padding:20px;padding-top:calc(20px + env(safe-area-inset-top))}
+.logo{font-family:'Rubik';font-weight:900;font-size:1.45rem;letter-spacing:-.03em;color:var(--text);text-decoration:none}
+.logo span{color:var(--signal)}
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 20px}
+.card{max-width:460px;width:100%;text-align:center}
+.check{width:104px;height:104px;margin:0 auto 30px;position:relative}
+.check .ring{position:absolute;inset:0;border-radius:50%;background:rgba(43,214,123,.12);transform:scale(0);animation:pop .6s var(--ease-spring) .1s forwards}
+.check .ring::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--signal);opacity:0;animation:ripple 1.4s var(--ease-out) .55s}
+.check svg{position:absolute;inset:0;width:100%;height:100%}
+.check circle{fill:var(--signal);transform-origin:center;transform:scale(0);animation:pop .5s var(--ease-spring) .3s forwards}
+.check path{fill:none;stroke:#05210F;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:tick .45s var(--ease-out) .7s forwards}
+@keyframes pop{to{transform:scale(1)}}
+@keyframes tick{to{stroke-dashoffset:0}}
+@keyframes ripple{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.7)}}
+.up{opacity:0;transform:translateY(12px);animation:up .6s var(--ease-out) forwards;animation-delay:var(--d)}
+@keyframes up{to{opacity:1;transform:none}}
+h1{font-family:'Rubik';font-weight:900;font-size:clamp(2rem,7vw,2.6rem);letter-spacing:-.02em;line-height:1.1;margin-bottom:12px}
+p.sub{color:var(--muted);font-size:1.08rem;margin-bottom:6px}
+p.time{font-family:'Rubik';font-weight:500;color:var(--signal);margin-bottom:34px}
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--signal);color:#05210F;padding:17px 20px;border-radius:14px;text-decoration:none;font-family:'Rubik';font-weight:700;font-size:1.02rem;box-shadow:0 12px 30px -10px rgba(43,214,123,.6);transition:transform .2s var(--ease-out),box-shadow .2s var(--ease-out)}
+@media(hover:hover){.wa-btn:hover{transform:translateY(-2px);box-shadow:0 16px 36px -10px rgba(43,214,123,.75)}}
+.wa-btn:active{transform:scale(.97)}
+.back{display:inline-block;margin-top:22px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .2s}
+@media(hover:hover){.back:hover{color:var(--text)}}
+footer{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));text-align:center;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important}
+}
 </style>
 </head>
 <body>
 
-<header><div class="logo">זמין<span>24</span></div></header>
+<header><a class="logo" href="/">זמין<span>24</span></a></header>
 
 <main>
   <div class="card">
-    <div class="check">✅</div>
-    <h1>הפרטים התקבלו!</h1>
-    <p class="sub">קיבלנו את הפנייה שלך ואנחנו כבר על זה.</p>
-    <p class="time">נחזור אליך תוך שעות ספורות 🚀</p>
+    <div class="check" aria-hidden="true">
+      <div class="ring"></div>
+      <svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="34"/><path d="M38 53l9.5 9.5L67 43"/></svg>
+    </div>
+    <h1 class="up" style="--d:.55s">הפרטים התקבלו!</h1>
+    <p class="sub up" style="--d:.65s">קיבלנו את הפנייה שלך ואנחנו כבר על זה.</p>
+    <p class="time up" style="--d:.75s">נחזור אליך תוך שעות ספורות</p>
 
-    <a class="wa-btn" href="https://wa.me/972504666396?text=%D7%94%D7%99%D7%99%2C%20%D7%94%D7%A9%D7%90%D7%A8%D7%AA%D7%99%20%D7%A2%D7%9B%D7%A9%D7%99%D7%95%20%D7%A4%D7%A8%D7%98%D7%99%D7%9D%20%D7%91%D7%90%D7%AA%D7%A8%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%94%D7%AA%D7%A7%D7%93%D7%9D%20%D7%9B%D7%91%D7%A8%20%D7%A2%D7%9B%D7%A9%D7%99%D7%95%20%F0%9F%99%82">
-      💬 רוצה תשובה מהירה יותר? דבר איתנו בוואטסאפ
-    </a>
-
-    <p class="or">או</p>
-    <a class="back" href="/">חזרה לאתר ←</a>
+    <div class="up" style="--d:.9s">
+      <a class="wa-btn" href="https://wa.me/972504666396?text=%D7%94%D7%99%D7%99%2C%20%D7%94%D7%A9%D7%90%D7%A8%D7%AA%D7%99%20%D7%A2%D7%9B%D7%A9%D7%99%D7%95%20%D7%A4%D7%A8%D7%98%D7%99%D7%9D%20%D7%91%D7%90%D7%AA%D7%A8%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%94%D7%AA%D7%A7%D7%93%D7%9D%20%D7%9B%D7%91%D7%A8%20%D7%A2%D7%9B%D7%A9%D7%99%D7%95%20%F0%9F%99%82">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#05210F" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/></svg>
+        רוצה תשובה מהירה יותר? דבר איתנו בוואטסאפ
+      </a>
+      <a class="back" href="/">חזרה לאתר ←</a>
+    </div>
   </div>
 </main>
 
