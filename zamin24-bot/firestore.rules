@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⚠️ PLACEHOLDER — החלף במייל הגוגל שלך (חייב להתאים ל-ALLOWED_AGENTS בקוד הפונקציות)
+    function isAgent() {
+      return request.auth != null &&
+             request.auth.token.email in ['michael.hamo29@gmail.com'];
+    }
+
+    // שיחות: קריאה לנציג בלבד. כתיבה מהדשבורד — רק איפוס מונה שלא-נקראו.
+    // כל שאר הכתיבות נעשות דרך Functions (Admin SDK עוקף rules).
+    match /wa_conversations/{phone} {
+      allow read: if isAgent();
+      allow update: if isAgent() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread']);
+      allow create, delete: if false;
+
+      match /messages/{msgId} {
+        allow read: if isAgent();
+        allow write: if false;
+      }
+    }
+
+    // לידים: קריאה ועדכון סטטוס לנציג
+    match /wa_leads/{leadId} {
+      allow read, update: if isAgent();
+      allow create, delete: if false;
+    }
+  }
+}

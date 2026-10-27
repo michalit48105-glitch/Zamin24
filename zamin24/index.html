@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>זמין24 — העסק שלך עונה, גם כשאתה לא</title>
+<meta name="description" content="דף נחיתה + מענה וואטסאפ אוטומטי לעסק שלך תוך 72 שעות. תפסיק לפספס לקוחות.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#10231C;
+  --bg:#F4F6F3;
+  --teal:#128C7E;
+  --green:#1FAD5E;
+  --chat:#DCF8C6;
+  --white:#FFFFFF;
+  --muted:#5A6B63;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Assistant',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+h1,h2,h3{font-family:'Rubik',sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+
+/* Header */
+header{padding:18px 0;display:flex;justify-content:space-between;align-items:center}
+.logo{font-family:'Rubik';font-weight:800;font-size:1.5rem}
+.logo span{color:var(--teal)}
+header a.cta-sm{background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;text-decoration:none;font-weight:600;font-size:.95rem}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding:48px 0 72px}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;margin-bottom:18px}
+.hero h1 em{font-style:normal;color:var(--teal);position:relative}
+.hero p.sub{font-size:1.2rem;color:var(--muted);margin-bottom:28px;max-width:32ch}
+.cta{display:inline-block;background:var(--green);color:#fff;font-family:'Rubik';font-weight:600;font-size:1.1rem;padding:16px 34px;border-radius:14px;text-decoration:none;box-shadow:0 6px 20px rgba(31,173,94,.35);transition:transform .15s}
+.cta:hover{transform:translateY(-2px)}
+.hero .note{font-size:.9rem;color:var(--muted);margin-top:12px}
+
+/* Phone mockup */
+.phone{background:#0b141a;border-radius:36px;padding:14px;box-shadow:0 24px 60px rgba(16,35,28,.25);max-width:340px;margin:0 auto}
+.screen{background:#ECE5DD;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;height:520px}
+.chat-head{background:var(--teal);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.chat-head .avatar{width:36px;height:36px;border-radius:50%;background:#fff;color:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;font-family:'Rubik'}
+.chat-head .name{font-weight:700;font-size:.95rem}
+.chat-head .status{font-size:.75rem;opacity:.85}
+.chat-body{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.msg{max-width:80%;padding:9px 13px;border-radius:12px;font-size:.9rem;opacity:0;transform:translateY(8px);animation:pop .4s forwards}
+.msg.in{background:#fff;align-self:flex-start;border-top-right-radius:2px}
+.msg.out{background:var(--chat);align-self:flex-end;border-top-left-radius:2px}
+.msg .time{display:block;font-size:.65rem;color:#8696a0;text-align:left;margin-top:3px}
+.msg:nth-child(1){animation-delay:.6s}
+.msg:nth-child(2){animation-delay:1.6s}
+.msg:nth-child(3){animation-delay:2.8s}
+.msg:nth-child(4){animation-delay:4s}
+.msg:nth-child(5){animation-delay:5.2s}
+@keyframes pop{to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.msg{animation:none;opacity:1;transform:none}}
+
+/* Pain */
+.pain{background:var(--ink);color:#fff;padding:64px 0}
+.pain h2{font-size:2rem;margin-bottom:32px;text-align:center}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.pain-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:24px}
+.pain-card .big{font-family:'Rubik';font-weight:800;font-size:1.15rem;margin-bottom:8px;color:#7FE0AE}
+.pain-card p{color:#C6D2CB;font-size:.98rem}
+
+/* Package */
+.package{padding:72px 0}
+.package h2{font-size:2rem;text-align:center;margin-bottom:8px}
+.package .lead{text-align:center;color:var(--muted);margin-bottom:40px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.step{background:#fff;border-radius:18px;padding:28px 24px;box-shadow:0 4px 18px rgba(16,35,28,.06)}
+.step .day{display:inline-block;background:var(--chat);color:var(--ink);font-family:'Rubik';font-weight:700;font-size:.85rem;padding:4px 12px;border-radius:999px;margin-bottom:14px}
+.step h3{font-size:1.15rem;margin-bottom:8px}
+.step p{color:var(--muted);font-size:.97rem}
+
+/* Pricing */
+.pricing{background:#fff;padding:72px 0}
+.pricing h2{font-size:2rem;text-align:center;margin-bottom:40px}
+.price-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:820px;margin:0 auto}
+.price-card{border:2px solid #E3E9E5;border-radius:20px;padding:32px}
+.price-card.hot{border-color:var(--green);position:relative}
+.price-card.hot .badge{position:absolute;top:-14px;right:24px;background:var(--green);color:#fff;font-family:'Rubik';font-weight:600;font-size:.8rem;padding:4px 14px;border-radius:999px}
+.price-card h3{font-size:1.25rem;margin-bottom:6px}
+.price-card .amount{font-family:'Rubik';font-weight:800;font-size:2.2rem;margin:10px 0}
+.price-card .amount small{font-size:1rem;font-weight:400;color:var(--muted)}
+.price-card ul{list-style:none;margin:18px 0}
+.price-card li{padding:6px 0;padding-right:26px;position:relative;font-size:.97rem}
+.price-card li::before{content:"✓";position:absolute;right:0;color:var(--green);font-weight:700}
+
+/* Form */
+.form-sec{padding:72px 0}
+.form-sec h2{font-size:2rem;text-align:center;margin-bottom:8px}
+.form-sec .lead{text-align:center;color:var(--muted);margin-bottom:36px}
+form{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+input,select{padding:14px 16px;border:2px solid #E3E9E5;border-radius:12px;font-family:'Assistant';font-size:1rem;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--teal)}
+button{background:var(--green);color:#fff;border:none;padding:16px;border-radius:12px;font-family:'Rubik';font-weight:600;font-size:1.1rem;cursor:pointer}
+.or{text-align:center;color:var(--muted);margin:18px 0 10px}
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:2px solid var(--green);color:var(--green);padding:14px;border-radius:12px;text-decoration:none;font-weight:700;max-width:460px;margin:0 auto}
+
+footer{padding:32px 0;text-align:center;color:var(--muted);font-size:.9rem}
+
+@media(max-width:820px){
+  .hero{grid-template-columns:1fr;padding:24px 0 48px}
+  .pain-grid,.steps,.price-grid{grid-template-columns:1fr}
+  .phone{max-width:300px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="logo">זמין<span>24</span></div>
+  <a class="cta-sm" href="#leadform">רוצה כזה לעסק שלי</a>
+</header>
+
+<section class="hero">
+  <div>
+    <h1>העסק שלך עונה ללקוחות.<br><em>גם כשאתה לא יכול.</em></h1>
+    <p class="sub">דף נחיתה מקצועי + מענה וואטסאפ אוטומטי שקובע פגישות בשבילך — מוכן תוך 72 שעות.</p>
+    <a class="cta" href="#leadform">אני רוצה להפסיק לפספס לקוחות</a>
+    <p class="note">בלי התחייבות · שיחת התאמה של 10 דקות</p>
+  </div>
+  <div class="phone" aria-label="הדגמה של מענה אוטומטי בוואטסאפ">
+    <div class="screen">
+      <div class="chat-head">
+        <div class="avatar">ז</div>
+        <div>
+          <div class="name">סטודיו יעל · עיצוב גבות</div>
+          <div class="status">מחובר/ת</div>
+        </div>
+      </div>
+      <div class="chat-body">
+        <div class="msg in">היי, אפשר לקבוע תור לשבוע הבא?<span class="time">21:47</span></div>
+        <div class="msg out">היי! 💚 כאן המענה של סטודיו יעל. בשמחה — לאיזה טיפול?<span class="time">21:47</span></div>
+        <div class="msg in">עיצוב גבות</div>
+        <div class="msg out">מעולה! נשארו מקומות ביום שלישי 16:00 או חמישי 11:30. מה מתאים?<span class="time">21:48</span></div>
+        <div class="msg in">שלישי 16:00 🙏</div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<section class="pain">
+<div class="wrap">
+  <h2>כמה לקוחות פספסת החודש?</h2>
+  <div class="pain-grid">
+    <div class="pain-card">
+      <div class="big">הודעה בשעה 21:47</div>
+      <p>לקוחה כותבת בערב. עד שענית בבוקר — היא כבר קבעה אצל המתחרה.</p>
+    </div>
+    <div class="pain-card">
+      <div class="big">"אין לי אתר"</div>
+      <p>אנשים מחפשים אותך בגוגל ולא מוצאים כלום. עסק בלי כתובת דיגיטלית נראה פחות אמין.</p>
+    </div>
+    <div class="pain-card">
+      <div class="big">אתה עסוק בעבודה</div>
+      <p>כשאתה באמצע טיפול, שיפוץ או אימון — אין לך ידיים לענות. הלקוח הבא לא מחכה.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="package">
+<div class="wrap">
+  <h2>מה אתה מקבל — תוך 72 שעות</h2>
+  <p class="lead">חבילה אחת שסוגרת את הפינה הדיגיטלית של העסק</p>
+  <div class="steps">
+    <div class="step">
+      <span class="day">יום 1</span>
+      <h3>דף נחיתה מקצועי</h3>
+      <p>עמוד אינטרנט ממותג לעסק שלך: מה אתה מציע, למה כדאי, וכפתור ליצירת קשר. מותאם לנייד.</p>
+    </div>
+    <div class="step">
+      <span class="day">יום 2</span>
+      <h3>מענה וואטסאפ אוטומטי</h3>
+      <p>הודעת פתיחה חכמה, תפריט שירותים ותשובות מהירות — הלקוח מקבל מענה מיידי, 24/7.</p>
+    </div>
+    <div class="step">
+      <span class="day">יום 3</span>
+      <h3>חיבור והדרכה</h3>
+      <p>מחברים הכל יחד, בודקים שעובד, ומלמדים אותך לתפעל את זה ב־15 דקות. מכאן זה רץ לבד.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="pricing">
+<div class="wrap">
+  <h2>מחיר השקה</h2>
+  <div class="price-grid">
+    <div class="price-card hot">
+      <span class="badge">5 מקומות ראשונים</span>
+      <h3>חבילת השקה</h3>
+      <div class="amount">₪790 <small>חד־פעמי</small></div>
+      <ul>
+        <li>דף נחיתה מלא ומותאם לנייד</li>
+        <li>הגדרת מענה וואטסאפ אוטומטי</li>
+        <li>טופס לידים ישירות לנייד שלך</li>
+        <li>הדרכת תפעול אישית</li>
+        <li>חודש ליווי ותיקונים חינם</li>
+      </ul>
+      <a class="cta" href="#leadform" style="display:block;text-align:center">תופס מקום</a>
+    </div>
+    <div class="price-card">
+      <h3>חבילה מלאה</h3>
+      <div class="amount">₪1,690 <small>+ ₪149/חודש תחזוקה</small></div>
+      <ul>
+        <li>כל מה שבחבילת ההשקה</li>
+        <li>עדכוני תוכן שוטפים</li>
+        <li>תזכורות אוטומטיות ללקוחות</li>
+        <li>דוח לידים חודשי</li>
+        <li>עדיפות בתמיכה</li>
+      </ul>
+      <a class="cta" href="#leadform" style="display:block;text-align:center;background:var(--ink)">בוא נדבר</a>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="form-sec" id="leadform">
+<div class="wrap">
+  <h2>רוצה שהעסק שלך יענה לבד?</h2>
+  <p class="lead">השאר פרטים ונחזור אליך תוך שעות ספורות</p>
+  <!-- Netlify Forms: הטופס יגיע ללשונית Forms בנטליפיי + מייל -->
+  <form name="leads" method="POST" action="/thanks.html" data-netlify="true" netlify-honeypot="bot-field">
+    <input type="hidden" name="form-name" value="leads">
+    <p style="display:none"><input name="bot-field"></p>
+    <input type="text" name="name" placeholder="שם מלא" required>
+    <input type="tel" name="phone" placeholder="טלפון (וואטסאפ)" required>
+    <select name="business" required>
+      <option value="" disabled selected>סוג העסק שלך</option>
+      <option>קוסמטיקה / יופי</option>
+      <option>קליניקה / טיפולים</option>
+      <option>מאמן / סטודיו כושר</option>
+      <option>בעל מקצוע (שיפוצים, חשמל...)</option>
+      <option>מסעדה / אוכל</option>
+      <option>אחר</option>
+    </select>
+    <button type="submit">שריין לי מקום בהשקה</button>
+  </form>
+  <p class="or">או פשוט תכתוב לנו:</p>
+  <!-- ⚠️ PLACEHOLDER: להחליף במספר הוואטסאפ העסקי שלך בפורמט בינלאומי, למשל 972501234567 -->
+  <a class="wa-btn" href="https://wa.me/972504666396?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%99%20%D7%A8%D7%95%D7%A6%D7%94%20%D7%9C%D7%A9%D7%9E%D7%95%D7%A2%20%D7%A2%D7%9C%20%D7%96%D7%9E%D7%99%D7%9F24">💬 שלח וואטסאפ עכשיו</a>
+</div>
+</section>
+
+<footer>
+  <div class="wrap">זמין24 · הקמת נוכחות דיגיטלית ומענה אוטומטי לעסקים קטנים</footer>
+</div>
+
+</body>
+</html>
