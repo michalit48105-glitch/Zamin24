@@ -22,10 +22,21 @@ service cloud.firestore {
       }
     }
 
-    // לידים: קריאה ועדכון סטטוס לנציג
+    // לידים: קריאה לנציג. מהדשבורד מותר לעדכן רק סטטוס והערות.
     match /wa_leads/{leadId} {
-      allow read, update: if isAgent();
+      allow read: if isAgent();
+      allow update: if isAgent() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'notes']);
       allow create, delete: if false;
+    }
+
+    // הגדרות עסק (businesses) ומזהי הודעות שטופלו (wa_processed):
+    // רק הפונקציות ניגשות אליהם, דרך Admin SDK. אין גישה מהדפדפן.
+    match /businesses/{id} {
+      allow read, write: if false;
+    }
+    match /wa_processed/{id} {
+      allow read, write: if false;
     }
   }
 }

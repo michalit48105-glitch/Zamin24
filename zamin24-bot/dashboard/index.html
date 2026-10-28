@@ -74,6 +74,26 @@ header button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;p
 .composer button:active{transform:scale(.92)}
 .composer button{background:var(--green);color:var(--green-ink);transition:transform .15s var(--ease-out);border:none;width:46px;height:46px;border-radius:50%;font-size:1.2rem;cursor:pointer;flex-shrink:0}
 #botNotice{background:#FFF4DC;color:#7A5500;text-align:center;font-size:.85rem;padding:8px}
+#windowNotice{background:#FDE8DF;color:#8A2C0A;text-align:center;font-size:.85rem;padding:8px 12px;line-height:1.4}
+
+/* Tabs */
+.tabs{display:flex;background:var(--ink);padding:0 10px;gap:4px}
+.tab{background:none;border:none;color:#9DB0A7;font-weight:600;font-size:.9rem;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tab.on{color:#fff;border-bottom-color:var(--green)}
+.tab .count{background:var(--green);color:var(--green-ink);font-size:.68rem;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
+.tab .count:empty{display:none}
+
+/* Leads */
+#leadList{flex:1;overflow-y:auto;background:#fff;display:none}
+.lead{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 16px;border-bottom:1px solid #EFEBE2}
+.lead .phone{font-weight:700;font-size:.95rem;background:none;border:none;padding:0;text-align:start;cursor:pointer;color:var(--ink);font-family:'Heebo',sans-serif}
+.lead .phone.link{color:var(--teal);text-decoration:underline;text-underline-offset:2px}
+.lead .details{grid-column:1/-1;font-size:.9rem}
+.lead .sub{grid-column:1/-1;font-size:.78rem;color:var(--muted)}
+.lead select{font-family:'Heebo';font-size:.82rem;font-weight:600;border:1px solid #DCD6C9;border-radius:999px;padding:4px 10px;background:#fff;color:var(--ink)}
+.lead select[data-status="new"]{background:#E4F7EC;border-color:#9FDDBA}
+.lead select[data-status="won"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lead select[data-status="lost"]{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -89,8 +109,13 @@ header button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;p
     <div class="logo">זמין<span>24</span> · שיחות</div>
     <button id="logoutBtn">יציאה</button>
   </header>
+  <nav class="tabs">
+    <button class="tab on" data-tab="convList">שיחות</button>
+    <button class="tab" data-tab="leadList">לידים <span class="count" id="newLeads"></span></button>
+  </nav>
 
   <div id="convList"><div id="empty">אין שיחות עדיין.<br>כשלקוח יכתוב לבוט — השיחה תופיע כאן בזמן אמת.</div></div>
+  <div id="leadList"><div id="empty">אין לידים עדיין.<br>כשלקוח ישאיר פרטים בבוט — הליד יופיע כאן.</div></div>
 
   <div id="chatView">
     <div class="chat-top">
@@ -99,6 +124,7 @@ header button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;p
       <button class="mode-btn take" id="modeBtn">קח שליטה</button>
     </div>
     <div id="botNotice" style="display:none">🤖 הבוט עונה בשיחה הזאת. לחץ "קח שליטה" או פשוט כתוב הודעה כדי להצטרף.</div>
+    <div id="windowNotice" style="display:none">⏰ עברו יותר מ-24 שעות מההודעה האחרונה של הלקוח. וואטסאפ לא יעביר הודעה חופשית עד שהלקוח יכתוב שוב.</div>
     <div id="messages"></div>
     <div class="composer">
       <input id="msgInput" type="text" placeholder="כתוב תשובה כנציג...">
@@ -129,7 +155,11 @@ const sendAgentMessage = httpsCallable(fns, "sendAgentMessage");
 const setConversationMode = httpsCallable(fns, "setConversationMode");
 
 const $ = (id) => document.getElementById(id);
-let currentPhone = null, currentMode = "bot", unsubMsgs = null, unsubConvs = null, seenMsgs = new Set();
+let currentPhone = null, currentMode = "bot", unsubMsgs = null, unsubConvs = null, unsubLeads = null, seenMsgs = new Set();
+let activeTab = "convList";
+const convData = {};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LEAD_STATUS = { new: "חדש", contacted: "נוצר קשר", won: "נסגר", lost: "לא רלוונטי" };
 
 $("loginBtn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 $("logoutBtn").onclick = () => signOut(auth);
@@ -137,8 +167,18 @@ $("logoutBtn").onclick = () => signOut(auth);
 onAuthStateChanged(auth, (user) => {
   $("login").style.display = user ? "none" : "flex";
   $("app").style.display = user ? "flex" : "none";
-  if (user) listenConversations(); else unsubConvs?.();
+  if (user) { listenConversations(); listenLeads(); } else { unsubConvs?.(); unsubLeads?.(); }
 });
+
+document.querySelectorAll(".tab").forEach((t) => { t.onclick = () => showTab(t.dataset.tab); });
+function showTab(id) {
+  activeTab = id;
+  unsubMsgs?.(); currentPhone = null;
+  $("chatView").style.display = "none";
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === id));
+  $("convList").style.display = id === "convList" ? "block" : "none";
+  $("leadList").style.display = id === "leadList" ? "block" : "none";
+}
 
 function listenConversations() {
   const q = query(collection(dbFS, "wa_conversations"), orderBy("updatedAt", "desc"));
@@ -148,6 +188,7 @@ function listenConversations() {
     list.innerHTML = "";
     snap.forEach((d) => {
       const c = d.data();
+      convData[d.id] = c;
       const el = document.createElement("div");
       el.className = "conv";
       el.innerHTML = `
@@ -163,8 +204,55 @@ function listenConversations() {
       el.onclick = () => openChat(d.id, c.mode || "bot");
       list.appendChild(el);
     });
+    refreshWindowUI();
   });
 }
+
+// ---- לידים מהבוט (wa_leads) ----
+function listenLeads() {
+  const q = query(collection(dbFS, "wa_leads"), orderBy("createdAt", "desc"));
+  unsubLeads = onSnapshot(q, (snap) => {
+    const list = $("leadList");
+    let fresh = 0;
+    if (snap.empty) { list.innerHTML = '<div id="empty">אין לידים עדיין.<br>כשלקוח ישאיר פרטים בבוט — הליד יופיע כאן.</div>'; $("newLeads").textContent = ""; return; }
+    list.innerHTML = "";
+    snap.forEach((d) => {
+      const l = d.data();
+      const status = LEAD_STATUS[l.status] ? l.status : "new";
+      if (status === "new") fresh++;
+      const el = document.createElement("div");
+      el.className = "lead";
+      const phone = document.createElement("button");
+      phone.className = "phone" + (convData[l.phone] ? " link" : "");
+      phone.textContent = formatPhone(l.phone || "");
+      if (convData[l.phone]) phone.onclick = () => openChat(l.phone, convData[l.phone].mode || "bot");
+      const sel = document.createElement("select");
+      sel.setAttribute("aria-label", "סטטוס ליד");
+      sel.innerHTML = Object.entries(LEAD_STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+      sel.value = status; sel.dataset.status = status;
+      sel.onchange = async () => {
+        sel.disabled = true;
+        try { await updateDoc(doc(dbFS, "wa_leads", d.id), { status: sel.value }); }
+        catch (e) { alert("העדכון נכשל: " + (e.message || e)); sel.value = status; }
+        sel.disabled = false;
+      };
+      const details = document.createElement("div"); details.className = "details"; details.textContent = l.details || "";
+      const sub = document.createElement("div"); sub.className = "sub";
+      sub.textContent = [l.source, l.createdAt?.toDate?.().toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })].filter(Boolean).join(" · ");
+      el.append(phone, sel, details, sub);
+      list.appendChild(el);
+    });
+    $("newLeads").textContent = fresh || "";
+  });
+}
+
+// ---- חלון 24 השעות של וואטסאפ ----
+function refreshWindowUI() {
+  if (!currentPhone) return;
+  const last = convData[currentPhone]?.lastCustomerAt?.toMillis?.();
+  $("windowNotice").style.display = last && Date.now() - last > DAY_MS ? "block" : "none";
+}
+setInterval(refreshWindowUI, 60 * 1000);
 
 function openChat(phone, mode) {
   currentPhone = phone; currentMode = mode;
@@ -173,7 +261,9 @@ function openChat(phone, mode) {
   $("chatView").classList.remove("enter"); void $("chatView").offsetWidth; $("chatView").classList.add("enter");
   seenMsgs = null;
   $("chatWho").textContent = formatPhone(phone);
+  $("convList").style.display = "none"; $("leadList").style.display = "none";
   refreshModeUI();
+  refreshWindowUI();
   updateDoc(doc(dbFS, "wa_conversations", phone), { unread: 0 }).catch(()=>{});
   const q = query(collection(dbFS, "wa_conversations", phone, "messages"), orderBy("ts", "asc"));
   unsubMsgs = onSnapshot(q, (snap) => {
@@ -194,11 +284,7 @@ function openChat(phone, mode) {
   });
 }
 
-$("backBtn").onclick = () => {
-  unsubMsgs?.(); currentPhone = null;
-  $("chatView").style.display = "none";
-  $("convList").style.display = "block";
-};
+$("backBtn").onclick = () => showTab(activeTab);
 
 function refreshModeUI() {
   const btn = $("modeBtn");

@@ -34,8 +34,9 @@ cd functions && npm install && cd ..
 firebase functions:secrets:set WA_TOKEN          # ה-Access Token ממטא
 firebase functions:secrets:set VERIFY_TOKEN      # מחרוזת שאתה ממציא, למשל: zamin24-secret-2026
 firebase functions:secrets:set PHONE_NUMBER_ID   # ה-Phone Number ID ממטא
+firebase functions:secrets:set APP_SECRET        # App Secret: באפליקציה במטא → App settings → Basic → Show
 
-firebase deploy --only functions
+firebase deploy --only functions,firestore:rules
 ```
 
 בסוף הפריסה תקבל URL כמו:
@@ -79,6 +80,24 @@ firebase deploy --only functions
 1. כל לקוח = מסמך קונפיגורציה (בהמשך נעביר את `BUSINESS_CONFIG` ל-Firestore: `businesses/{id}`)
 2. מספר וואטסאפ ייעודי ללקוח באותה אפליקציית מטא (עד 2 מספרים בלי אימות עסק, יותר — עם)
 3. אותו קוד, אותה פונקציה — רק config שונה. עלות שולית ללקוח: כמעט אפס
+
+> **למה APP_SECRET:** מטא חותמת כל בקשה ל-Webhook. הבוט בודק את החתימה ודוחה (401) כל בקשה שלא הגיעה ממטא. בלי הסוד הפריסה תיכשל, ואם הסוד שגוי הבוט לא יענה לאף הודעה. אם הבוט שותק אחרי הפריסה, הדבר הראשון לבדוק הוא את הסוד הזה ואת לוג הפונקציה ("Webhook rejected").
+
+## הגדרות לכל עסק בלי לגעת בקוד (גרסה 3)
+
+הטקסטים של הבוט נטענים ממסמך ב-Firestore, ואם אין מסמך — מברירת המחדל שבקוד (`DEFAULT_CONFIG`).
+
+1. Firebase Console → Firestore → אוסף `businesses` → מסמך שהמזהה שלו הוא ה-Phone Number ID של המספר.
+2. מוסיפים רק את השדות שרוצים לשנות: `name`, `ownerPhone`, `greeting`, `menu`, `pricing`, `humanHandoff`, `leadAsk`, `leadDone`, `fallback`, `unsupported`, `backToBot`.
+3. ב-`leadDone` כותבים `{name}` במקום שבו יופיע שם הלקוח.
+4. שינוי נקלט תוך דקה, בלי פריסה.
+
+## מה נוסף בגרסה 3
+- אימות חתימה על כל בקשה ל-Webhook (APP_SECRET).
+- הודעה שמגיעה פעמיים (מטא שולחת שוב כשלא קיבלה אישור בזמן) מטופלת פעם אחת בלבד. המזהים נשמרים ב-`wa_processed`.
+- כפתורים ותפריטים אינטראקטיביים נקראים כטקסט. הודעה קולית, תמונה, מסמך וכו' מקבלות תשובה מנומסת ונרשמות בשיחה, ובמצב נציג הבוט שותק.
+- `lastCustomerAt` בכל שיחה, והדשבורד מתריע כשעברו 24 שעות מההודעה האחרונה של הלקוח.
+- לשונית **לידים** בדשבורד, עם עדכון סטטוס (חדש, נוצר קשר, נסגר, לא רלוונטי).
 
 ## גרסה 2 (אחרי הלקוח הראשון)
 - כפתורים אינטראקטיביים במקום "כתבו 1" (Interactive Buttons של ה-API)
