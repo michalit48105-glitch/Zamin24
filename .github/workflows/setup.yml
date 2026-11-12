@@ -1,0 +1,79 @@
+# הקמה חד-פעמית של החיבורים. מריצים ידנית: Actions → Setup → Run workflow.
+# אפשר להריץ שוב בבטחה: כל שלב בודק מה כבר קיים. ההוראות: docs/automation.md
+name: Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: מה להקים
+        type: choice
+        default: all
+        options: [all, firebase-secrets, firebase-webapp, google, netlify, meta]
+# "all" לא כולל את meta: מטא בודקת את כתובת הבוט מיד, ולכן מריצים meta רק אחרי הפריסה הראשונה.
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      STEP: ${{ inputs.step }}
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      OWNER_EMAIL: ${{ vars.OWNER_EMAIL }}
+      DASHBOARD_DOMAIN: ${{ vars.DASHBOARD_DOMAIN }}
+      NETLIFY_SITE_NAME: ${{ vars.NETLIFY_SITE_NAME }}
+      NETLIFY_DASHBOARD_SITE_NAME: ${{ vars.NETLIFY_DASHBOARD_SITE_NAME }}
+      OWNER_ALERT_TEMPLATE: ${{ vars.OWNER_ALERT_TEMPLATE }}
+      META_WABA_ID: ${{ vars.META_WABA_ID }}
+      META_APP_ID: ${{ vars.META_APP_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_WEBHOOK_SECRET: ${{ secrets.NETLIFY_WEBHOOK_SECRET }}
+      WA_TOKEN: ${{ secrets.WA_TOKEN }}
+      VERIFY_TOKEN: ${{ secrets.VERIFY_TOKEN }}
+      PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER_ID }}
+      APP_SECRET: ${{ secrets.APP_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: google-github-actions/auth@v2
+        if: contains(fromJSON('["all","firebase-secrets","firebase-webapp","google"]'), inputs.step)
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+        if: contains(fromJSON('["all","google"]'), inputs.step)
+
+      - name: סודות הבוט ב-Firebase
+        if: contains(fromJSON('["all","firebase-secrets"]'), inputs.step)
+        run: |
+          echo "### firebase-secrets" >> "$GITHUB_STEP_SUMMARY"
+          for name in WA_TOKEN VERIFY_TOKEN PHONE_NUMBER_ID APP_SECRET NETLIFY_WEBHOOK_SECRET; do
+            value="${!name}"
+            if [ -z "$value" ]; then echo "- ✗ חסר הסוד $name ב-GitHub" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+            printf '%s' "$value" | npx --yes firebase-tools@13 functions:secrets:set "$name" --data-file=- --project "$FIREBASE_PROJECT_ID" --non-interactive
+            echo "- $name הוגדר" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: אפליקציית ווב לדשבורד
+        if: contains(fromJSON('["all","firebase-webapp"]'), inputs.step)
+        run: |
+          echo "### firebase-webapp" >> "$GITHUB_STEP_SUMMARY"
+          count=$(npx --yes firebase-tools@13 apps:list WEB --project "$FIREBASE_PROJECT_ID" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log((j.result||[]).length)})')
+          if [ "$count" = "0" ]; then
+            npx --yes firebase-tools@13 apps:create WEB zamin24-dashboard --project "$FIREBASE_PROJECT_ID" --non-interactive
+            echo "- נוצרה אפליקציית ווב zamin24-dashboard" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- כבר קיימת אפליקציית ווב בפרויקט" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Google (דומיין מורשה, Sheets API)
+        if: contains(fromJSON('["all","google"]'), inputs.step)
+        run: GOOGLE_ACCESS_TOKEN="$(gcloud auth print-access-token)" node scripts/ci/setup.mjs google
+
+      - name: Netlify (אתרים, התראת מייל, webhook לטופס)
+        if: contains(fromJSON('["all","netlify"]'), inputs.step)
+        run: node scripts/ci/setup.mjs netlify
+
+      - name: Meta (תבנית התראה, Webhook)
+        if: inputs.step == 'meta'
+        run: node scripts/ci/setup.mjs meta
