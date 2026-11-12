@@ -1,0 +1,112 @@
+# פריסה אוטומטית של זמין24: אתר → Netlify, בוט וחוקים → Firebase, דשבורד → Netlify.
+# רץ על כל דחיפה ל-main, או ידנית (Actions → Deploy → Run workflow).
+# כל חלק מדלג לבד אם הסודות שלו עוד לא הוגדרו. ההוראות: docs/automation.md
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: בדיקת סנכרון הגדרות
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-sync.mjs
+
+  site:
+    name: אתר → Netlify
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      SITE: ${{ vars.NETLIFY_SITE_NAME || 'zamin24' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pre
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then echo "ok=false" >> "$GITHUB_OUTPUT"; echo "⏭️ דילגתי על האתר: חסר NETLIFY_AUTH_TOKEN" >> "$GITHUB_STEP_SUMMARY"; else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.pre.outputs.ok == 'true'
+        with:
+          node-version: 20
+      - if: steps.pre.outputs.ok == 'true'
+        run: |
+          npx --yes netlify-cli@17 deploy --dir zamin24 --prod --site "$SITE" --message "${GITHUB_SHA::7}" | tee deploy.log
+          echo "✅ האתר נפרס ל-$SITE" >> "$GITHUB_STEP_SUMMARY"
+
+  firebase:
+    name: בוט וחוקים → Firebase
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
+      HAS_KEY: ${{ secrets.GCP_SA_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pre
+        run: |
+          if [ -z "$PROJECT" ] || [ "$HAS_KEY" != "true" ]; then echo "ok=false" >> "$GITHUB_OUTPUT"; echo "⏭️ דילגתי על Firebase: חסר FIREBASE_PROJECT_ID או GCP_SA_KEY" >> "$GITHUB_STEP_SUMMARY"; else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: google-github-actions/auth@v2
+        if: steps.pre.outputs.ok == 'true'
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: actions/setup-node@v4
+        if: steps.pre.outputs.ok == 'true'
+        with:
+          node-version: 20
+      - name: הגדרות לא סודיות (functions/.env)
+        if: steps.pre.outputs.ok == 'true'
+        run: |
+          {
+            echo "SHEET_ID=${{ vars.SHEET_ID }}"
+            echo "OWNER_ALERT_TEMPLATE=${{ vars.OWNER_ALERT_TEMPLATE || 'zamin24_alert' }}"
+            echo "OWNER_ALERT_LANG=he"
+          } > zamin24-bot/functions/.env
+      - if: steps.pre.outputs.ok == 'true'
+        working-directory: zamin24-bot/functions
+        run: npm install --omit=dev --no-audit --no-fund
+      - if: steps.pre.outputs.ok == 'true'
+        working-directory: zamin24-bot
+        run: |
+          npx --yes firebase-tools@13 deploy --only functions,firestore:rules --project "$PROJECT" --non-interactive --force
+          echo "✅ הפונקציות והחוקים נפרסו לפרויקט $PROJECT" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Webhook לבוט: https://europe-west1-$PROJECT.cloudfunctions.net/whatsappWebhook" >> "$GITHUB_STEP_SUMMARY"
+
+  dashboard:
+    name: דשבורד → Netlify
+    needs: firebase
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
+      HAS_KEY: ${{ secrets.GCP_SA_KEY != '' }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      SITE: ${{ vars.NETLIFY_DASHBOARD_SITE_NAME || 'zamin24-inbox' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pre
+        run: |
+          if [ -z "$PROJECT" ] || [ "$HAS_KEY" != "true" ] || [ -z "$NETLIFY_AUTH_TOKEN" ]; then echo "ok=false" >> "$GITHUB_OUTPUT"; echo "⏭️ דילגתי על הדשבורד: חסר FIREBASE_PROJECT_ID, GCP_SA_KEY או NETLIFY_AUTH_TOKEN" >> "$GITHUB_STEP_SUMMARY"; else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: google-github-actions/auth@v2
+        if: steps.pre.outputs.ok == 'true'
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: actions/setup-node@v4
+        if: steps.pre.outputs.ok == 'true'
+        with:
+          node-version: 20
+      - if: steps.pre.outputs.ok == 'true'
+        run: |
+          npx --yes firebase-tools@13 apps:sdkconfig WEB --project "$PROJECT" --json > sdkconfig.json
+          node scripts/ci/inject-firebase-config.mjs sdkconfig.json dist-dashboard
+          npx --yes netlify-cli@17 deploy --dir dist-dashboard --prod --site "$SITE" --message "${GITHUB_SHA::7}"
+          echo "✅ הדשבורד נפרס ל-$SITE" >> "$GITHUB_STEP_SUMMARY"
