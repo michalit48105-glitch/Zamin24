@@ -12,12 +12,17 @@
  * - כפתורים ותפריטים נקראים כטקסט; הודעה קולית, תמונה וכו' מקבלות תשובה
  * - lastCustomerAt בכל שיחה, כדי שהדשבורד יתריע על חלון 24 השעות
  * - ההגדרות של העסק נטענות מ-Firestore (businesses/{PHONE_NUMBER_ID}) מעל ברירת המחדל
+ * חדש בגרסה 4:
+ * - כל ליד (מהבוט ומטופס האתר) נכתב גם ל-Google Sheet אחד, אם הוגדר SHEET_ID
+ * - netlifyLead: מקבל את טופס האתר מ-Netlify (Outgoing webhook חתום) ושומר אותו ב-wa_leads
+ * - התראות לבעלים: אם הודעה רגילה נחסמת (מחוץ לחלון 24 השעות), נשלחת הודעת תבנית מאושרת
  */
 
 const crypto = require("crypto");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const { GoogleAuth } = require("google-auth-library");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -27,6 +32,12 @@ const WA_TOKEN = defineSecret("WA_TOKEN");
 const VERIFY_TOKEN = defineSecret("VERIFY_TOKEN");
 const PHONE_NUMBER_ID = defineSecret("PHONE_NUMBER_ID");
 const APP_SECRET = defineSecret("APP_SECRET"); // App Secret של האפליקציה במטא (App settings → Basic)
+const NETLIFY_WEBHOOK_SECRET = defineSecret("NETLIFY_WEBHOOK_SECRET"); // JWS secret token של ה-Outgoing webhook בנטליפיי
+
+// הגדרות לא סודיות (functions/.env). ריק = התכונה כבויה, והפריסה עובדת גם בלעדיהן.
+const SHEET_ID = defineString("SHEET_ID", { default: "", description: "מזהה Google Sheet הלידים (החלק שבין /d/ ל-/edit). ריק = בלי גיליון" });
+const OWNER_ALERT_TEMPLATE = defineString("OWNER_ALERT_TEMPLATE", { default: "", description: "שם תבנית מאושרת במטא להתראות לבעלים. ריק = רק הודעה רגילה" });
+const OWNER_ALERT_LANG = defineString("OWNER_ALERT_LANG", { default: "he", description: "קוד השפה של תבנית ההתראה" });
 
 // ⚠️ PLACEHOLDER — המיילים שמורשים להיכנס לדשבורד (חשבון גוגל שלך)
 // חייב להתאים לפונקציה isAgent ב-firestore.rules
@@ -111,6 +122,55 @@ async function logMessage(phone, text, sender) {
   );
 }
 
+// ---- התראה לבעלים: הודעה רגילה, ואם מטא חוסמת (עברו 24 שעות) — הודעת תבנית ----
+async function sendOwnerAlert(cfg, text, token, phoneNumberId) {
+  if (await sendText(cfg.ownerPhone, text, token, phoneNumberId, "bot")) return true;
+  const template = OWNER_ALERT_TEMPLATE.value();
+  if (!template) {
+    console.error("Owner alert not delivered. Set OWNER_ALERT_TEMPLATE to send alerts outside the 24h window.");
+    return false;
+  }
+  // פרמטר בתבנית לא יכול להכיל ירידות שורה
+  const param = text.replace(/\s*\n+\s*/g, " · ").slice(0, 1000);
+  const res = await fetch(GRAPH_URL(phoneNumberId), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp", to: cfg.ownerPhone, type: "template",
+      template: { name: template, language: { code: OWNER_ALERT_LANG.value() }, components: [{ type: "body", parameters: [{ type: "text", text: param }] }] },
+    }),
+  });
+  if (!res.ok) {
+    console.error("Owner alert template failed:", res.status, await res.text());
+    return false;
+  }
+  await logMessage(cfg.ownerPhone, text, "bot");
+  return true;
+}
+
+// ---- Google Sheet: שורה לכל ליד, עם ה-service account של הפונקציות ----
+const sheetsAuth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+const toLocalPhone = (p) => (String(p || "").startsWith("972") ? "0" + String(p).slice(3) : String(p || ""));
+const toIntlPhone = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.startsWith("0") ? "972" + d.slice(1) : d; };
+async function appendLeadRow({ name, phone, business, source, notes = "" }) {
+  const id = SHEET_ID.value();
+  if (!id) return false;
+  try {
+    const client = await sheetsAuth.getClient();
+    const date = new Date().toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
+    await client.request({
+      url: `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      method: "POST",
+      // כותרות הגיליון: תאריך | שם | טלפון | סוג עסק | מקור | סטטוס | הערות
+      data: { values: [[date, name || "", toLocalPhone(phone), business || "", source, "חדש", notes]] },
+    });
+    return true;
+  } catch (err) {
+    console.error("Sheets append failed:", err.message);
+    return false;
+  }
+}
+
 async function getState(phone) {
   const doc = await db.collection("wa_conversations").doc(phone).get();
   return doc.exists ? doc.data() : { stage: "new", mode: "bot", failCount: 0 };
@@ -127,10 +187,12 @@ async function saveLead(cfg, phone, text, source, token, phoneNumberId) {
     phone, details: text, source,
     createdAt: FieldValue.serverTimestamp(), status: "new",
   });
-  await sendText(
-    cfg.ownerPhone,
+  const [name, ...rest] = text.split(/\s*,\s*/);
+  await appendLeadRow({ name, phone, business: rest.join(", "), source: `בוט וואטסאפ · ${source}` });
+  await sendOwnerAlert(
+    cfg,
     `🔥 ליד חדש ב${cfg.name}!\nטלפון: ${phone}\nפרטים: ${text}\nמקור: ${source}`,
-    token, phoneNumberId, "bot"
+    token, phoneNumberId
   );
 }
 
@@ -138,10 +200,10 @@ async function saveLead(cfg, phone, text, source, token, phoneNumberId) {
 async function handoffToHuman(cfg, phone, reason, token, phoneNumberId) {
   await setState(phone, { mode: "human", handoffReason: reason, failCount: 0 });
   await sendText(phone, cfg.humanHandoff, token, phoneNumberId);
-  await sendText(
-    cfg.ownerPhone,
+  await sendOwnerAlert(
+    cfg,
     `🙋 שיחה עברה לנציג!\nטלפון: ${phone}\nסיבה: ${reason}\nהיכנס לדשבורד לענות.`,
-    token, phoneNumberId, "bot"
+    token, phoneNumberId
   );
 }
 
@@ -275,6 +337,47 @@ exports.whatsappWebhook = onRequest(
       return res.sendStatus(200);
     }
     return res.sendStatus(405);
+  }
+);
+
+// ---- טופס האתר: Outgoing webhook של Netlify Forms ----
+// נטליפיי חותמת כל קריאה ב-JWS (HS256) בכותרת X-Webhook-Signature, עם hash של גוף הבקשה.
+const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+function hasValidNetlifySignature(req, secret) {
+  const jws = req.get("x-webhook-signature") || "";
+  const [h, p, sig] = jws.split(".");
+  if (!h || !p || !sig || !req.rawBody) return false;
+  const expected = b64url(crypto.createHmac("sha256", secret).update(`${h}.${p}`).digest());
+  const a = Buffer.from(sig), b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  try {
+    const claims = JSON.parse(Buffer.from(p.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
+    const bodyHash = crypto.createHash("sha256").update(req.rawBody).digest("hex");
+    return claims.iss === "netlify" && claims.sha256 === bodyHash;
+  } catch {
+    return false;
+  }
+}
+
+exports.netlifyLead = onRequest(
+  { secrets: [NETLIFY_WEBHOOK_SECRET], region: "europe-west1" },
+  async (req, res) => {
+    if (req.method !== "POST") return res.sendStatus(405);
+    if (!hasValidNetlifySignature(req, NETLIFY_WEBHOOK_SECRET.value())) {
+      console.warn("Netlify webhook rejected: bad or missing signature");
+      return res.sendStatus(401);
+    }
+    const d = req.body?.data || {};
+    const name = String(d.name || "").trim().slice(0, 120);
+    const phone = toIntlPhone(d.phone);
+    const business = String(d.business || "").trim().slice(0, 120);
+    if (!name || !phone) return res.sendStatus(200); // שליחה ריקה או ספאם — לא נשמרת
+    await db.collection("wa_leads").add({
+      phone, details: [name, business].filter(Boolean).join(", "), source: "טופס באתר",
+      createdAt: FieldValue.serverTimestamp(), status: "new",
+    });
+    await appendLeadRow({ name, phone, business, source: "טופס באתר" });
+    return res.sendStatus(200);
   }
 );
 

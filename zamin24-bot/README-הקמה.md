@@ -35,6 +35,7 @@ firebase functions:secrets:set WA_TOKEN          # ה-Access Token ממטא
 firebase functions:secrets:set VERIFY_TOKEN      # מחרוזת שאתה ממציא, למשל: zamin24-secret-2026
 firebase functions:secrets:set PHONE_NUMBER_ID   # ה-Phone Number ID ממטא
 firebase functions:secrets:set APP_SECRET        # App Secret: באפליקציה במטא → App settings → Basic → Show
+firebase functions:secrets:set NETLIFY_WEBHOOK_SECRET  # מחרוזת סודית לחיבור טופס האתר (ראו משימות-Google-Sheets.md)
 
 firebase deploy --only functions,firestore:rules
 ```
@@ -91,6 +92,15 @@ firebase deploy --only functions,firestore:rules
 2. מוסיפים רק את השדות שרוצים לשנות: `name`, `ownerPhone`, `greeting`, `menu`, `pricing`, `humanHandoff`, `leadAsk`, `leadDone`, `fallback`, `unsupported`, `backToBot`.
 3. ב-`leadDone` כותבים `{name}` במקום שבו יופיע שם הלקוח.
 4. שינוי נקלט תוך דקה, בלי פריסה.
+
+## מה נוסף בגרסה 4
+- **גיליון לידים אחד:** כל ליד מהבוט ומטופס האתר נכתב ל-Google Sheet. ההקמה ב-`משימות-Google-Sheets.md`.
+- **`netlifyLead`:** פונקציה שמקבלת את טופס האתר מנטליפיי (Outgoing webhook חתום ב-`NETLIFY_WEBHOOK_SECRET`), ושומרת אותו ב-`wa_leads`, כך שגם לידים מהאתר מופיעים בלשונית **לידים** בדשבורד.
+- **התראות לבעלים מחוץ לחלון 24 השעות:** מטא חוסמת הודעה רגילה למי שלא כתב לבוט ב-24 השעות האחרונות — וזה כולל אותך. בלי תבנית, התראות "ליד חדש" ו"שיחה עברה לנציג" לא יגיעו. ההקמה:
+  1. WhatsApp Manager → **Message templates** → **Create**: קטגוריה **Utility**, שם `zamin24_alert`, שפה **Hebrew**, גוף: `התראה מזמין24: {{1}}`
+  2. אחרי האישור, בקובץ `functions/.env`: `OWNER_ALERT_TEMPLATE=zamin24_alert`
+  3. פריסה. מעכשיו, אם ההודעה הרגילה נחסמת, הבוט שולח את ההתראה דרך התבנית (בתשלום לפי תעריף מטא).
+- **בדיקת סנכרון:** `node scripts/check-sync.mjs` מתיקיית הריפו בודק שמחירים, מספר הטלפון, מיילי הנציג ואזור Firebase זהים בכל הקבצים.
 
 ## מה נוסף בגרסה 3
 - אימות חתימה על כל בקשה ל-Webhook (APP_SECRET).
